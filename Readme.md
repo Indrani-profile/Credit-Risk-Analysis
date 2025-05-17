@@ -1,345 +1,263 @@
-# **Documentation for `utils.py`**
+# Credit Risk Data Cleaning and Exploratory Data Analysis (EDA)
 
-## **Overview**
-This project provides a utility script to support a credit scoring system built using a machine learning model. The script includes functions to preprocess input data, make predictions, and calculate credit scores based on the probability of default. The utilities are designed to be modular, scalable, and easy to integrate into a larger credit risk evaluation pipeline.
-
-The predictive model is trained to estimate the likelihood of loan default, and the output credit score aligns with industry standards, ranging from 300 (low creditworthiness) to 900 (excellent creditworthiness). This utility script plays a crucial role in preparing data, making predictions, and providing actionable insights.
+This repository demonstrates an end-to-end process for **data cleaning** and **exploratory data analysis (EDA)** for a credit risk dataset. The project focuses on handling data inconsistencies, outliers, and missing values, while also extracting meaningful insights through univariate and bivariate analysis. This work is intended to serve as a foundation for advanced machine learning applications, such as predicting loan defaults.
 
 ---
 
-## **Detailed Code Explanation**
+## Project Overview
 
-### 1. **Model Loading**
+The goal of this project is to prepare a credit risk dataset for analysis and build a strong understanding of its features. The project is divided into the following key sections:
+
+1. **Data Cleaning**:
+    - Addressing missing values.
+    - Identifying and correcting inconsistent or inappropriate data.
+    - Ensuring proper data types and detecting duplicate entries.
+    - Handling outliers using domain knowledge and statistical techniques.
+
+2. **Feature Engineering**:
+    - Deriving new features to gain better insights.
+    - Validating and filtering data based on domain-specific rules.
+
+3. **Exploratory Data Analysis (EDA)**:
+    - Univariate analysis to study the distribution of individual features.
+    - Bivariate analysis to explore relationships between features and the target variable (`default`).
+    - Correlation analysis to understand the strength of relationships among numerical variables.
+
+---
+
+## Code Walkthrough
+
+Below is a detailed explanation of the code and its purpose:
+
+---
+
+### **1. Data Loading**
 ```python
-import joblib
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-
-model_data = joblib.load(r"project-root/model/model_data.pkl")
+df = pd.read_csv("/content/explored_data.csv")
+df.head()
 ```
-- **Purpose**: Loads the serialized model and associated data (scaler, features, columns to scale) from a `.pkl` file.
-- **Components Loaded**:
-  - **`model`**: The trained machine learning model (e.g., XGBoost).
-  - **`scaler`**: A `StandardScaler` object for normalizing numerical features.
-  - **`features`**: The list of features used for prediction.
-  - **`columns_to_scale`**: The numerical columns to be standardized.
+- The dataset is loaded into a pandas DataFrame for processing.
+- The initial few rows are inspected to understand the structure and content.
 
-### 2. **Data Preparation**
+---
+
+### **2. Handling Missing Values**
 ```python
-def data_preparation(age, avg_dpd_per_dm, credit_utilization_ratio, dmtlm, income, 
-                     loan_amount, loan_tenure_months, total_loan_months, 
-                     loan_purpose, loan_type, residence_type):
-    data_input = {...}
-    df = pd.DataFrame([data_input])
-    df[columns_to_scale] = scaler.transform(df[columns_to_scale])
-    df = df[features]
-    return df
+df.isnull().sum()
+df.dropna(inplace=True)
 ```
-- **Purpose**: Prepares user-provided input data for prediction by:
-  1. Collecting raw input into a dictionary.
-  2. Transforming it into a pandas DataFrame.
-  3. Standardizing the specified columns using the preloaded `scaler`.
-  4. Selecting only the features required by the model.
+- The dataset is checked for missing values using `isnull().sum()`.
+- Missing values are dropped since their proportion was negligible.
 
-- **Key Calculations**:
-  - Loan-to-income ratio (`lti`): Calculated to capture affordability. If `income` is zero, defaults to zero to avoid division errors.
-  - One-hot encoding for categorical features like `loan_purpose`, `loan_type`, and `residence_type`.
+---
 
-### 3. **Credit Score Calculation**
+### **3. Correcting Inconsistencies in Categorical Data**
 ```python
-def calculate_credit_score(input_df, base_score=300, scale_length=600):
-    default_probability = model.predict_proba(input_df)[:, 1]
-    non_default_probability = 1 - default_probability
-    credit_score = base_score + non_default_probability.flatten() * scale_length
-    ...
-    return default_probability.flatten()[0], int(credit_score), rating
+df['loan_purpose'] = df['loan_purpose'].replace({'Personaal': 'Personal'})
 ```
-- **Purpose**: Computes the credit score and assigns a credit rating based on model predictions.
-- **Steps**:
-  1. Predicts **default probability** using the model.
-  2. Calculates **non-default probability** (complement of default probability).
-  3. Derives the **credit score** using a linear transformation from default probability to a scale of 300–900.
-  4. Determines the **credit rating**:
-     - Poor: 300–499
-     - Average: 500–649
-     - Good: 650–749
-     - Excellent: 750–900
+- Data inconsistencies in categorical variables (e.g., misspelled categories) are fixed using `.replace()`.
 
-### 4. **Prediction Function**
+---
+
+### **4. Data Type Corrections**
 ```python
-def predict(age, avg_dpd_per_dm, credit_utilization_ratio, dmtlm, income, 
-            loan_amount, loan_tenure_months, total_loan_months, 
-            loan_purpose, loan_type, residence_type):
-    input_df = data_preparation(...)
-    probability, credit_score, rating = calculate_credit_score(input_df)
-    return probability, credit_score, rating
+df['zipcode'] = df['zipcode'].astype(str)
+df['disbursal_date'] = pd.to_datetime(df['disbursal_date'])
+df['installment_start_dt'] = pd.to_datetime(df['installment_start_dt'])
 ```
-- **Purpose**: Combines data preparation and credit score calculation into a single function for streamlined predictions.
-- **Inputs**:
-  - User-provided data including numerical (e.g., `age`, `income`) and categorical (e.g., `loan_purpose`) features.
-- **Outputs**:
-  - **Probability of default**: Likelihood that the user will default on a loan.
-  - **Credit score**: Numeric value representing creditworthiness.
-  - **Rating**: Descriptive label (Poor, Average, Good, Excellent).
+- Columns like `zipcode` are converted to strings, and date columns are converted to datetime format.
 
 ---
 
-## **Conceptual Explanation**
-
-### **Credit Scoring System**
-The utility script is a key component of a machine learning-based credit scoring system. Credit scoring evaluates a borrower's risk of default, aiding financial institutions in decision-making for loan approvals. This implementation uses probability-based scoring to generate a credit score from 300 to 900, making it comparable with industry standards.
-
-### **Data Transformation**
-- Preprocessing ensures that the raw inputs are standardized and match the format expected by the model.
-- Numerical columns are scaled using `StandardScaler`, improving model stability and performance.
-
-### **Model Prediction**
-- The trained machine learning model predicts the likelihood of default.
-- The utility calculates the credit score using a base and scale length, translating default probabilities into an intuitive score range.
-
-### **Interpretability**
-- The calculated score and assigned rating provide interpretable insights into creditworthiness.
-- This system ensures transparency by linking the score to measurable probabilities.
-
----
-
-## **Key Features**
-1. **Modular Design**: Functions are self-contained, making them reusable and adaptable.
-2. **Scalability**: Can handle various input formats and extend to additional features or models.
-3. **Compliance**: Credit scores align with industry norms, aiding in seamless adoption.
-
----
-
-## **How to Use**
-
-1. **Set Up the Environment**:
-   - Ensure dependencies (`joblib`, `numpy`, `pandas`, `scikit-learn`) are installed.
-   - Load the serialized model using `joblib.load()`.
-
-2. **Prepare Input Data**:
-   - Provide necessary inputs (age, income, loan details, etc.) to the `predict` function.
-
-3. **Make Predictions**:
-   - Call the `predict` function to obtain the probability of default, credit score, and rating.
-
-4. **Integrate**:
-   - Use the output credit score and rating for decision-making in financial workflows.
-
----
-
----
-
-
-# **Documentation for `main.py`**
-
-## **Overview**
-The `main.py` file serves as the frontend interface for a credit risk modeling system. Built with Streamlit, this application allows users to input borrower details interactively and calculate the probability of default, credit score, and risk rating. The app is designed to provide both intuitive insights and actionable outcomes, making it a practical tool for financial institutions.
-
----
-
-## **Conceptual Explanation**
-
-### **Credit Risk Modeling**
-Credit risk modeling evaluates the likelihood of a borrower defaulting on a loan. The application leverages a machine learning model to assess the risk based on borrower and loan characteristics. Outputs include:
-- **Default Probability**: The likelihood of loan default, expressed as a percentage.
-- **Credit Score**: A numeric value (300–900) reflecting creditworthiness.
-- **Credit Rating**: A qualitative rating (Poor, Average, Good, Excellent).
-
-### **Application Features**
-- **Interactive Inputs**: Users can dynamically adjust borrower and loan parameters.
-- **Real-Time Risk Assessment**: Calculates default probability, credit score, and rating instantly.
-- **User-Friendly Design**: Streamlit provides a clean and responsive user interface.
-
----
-
-## **Detailed Code Explanation**
-
-### 1. **Setting Up the Page**
+### **5. Checking for Duplicates**
 ```python
-st.set_page_config(page_title="Lauki Finance: Credit Risk Modelling", page_icon="📊", layout="centered")
-st.title("📊 Lauki Finance: Credit Risk Modelling")
+df.duplicated().sum()
 ```
-- **Purpose**: Configures the app's title, icon, and layout. Creates a welcoming interface with a clear title.
-
-### 2. **Sidebar Instructions**
-```python
-with st.sidebar:
-    st.header("Instructions")
-    st.write("""
-    1. Fill in the necessary fields on the right side.
-    2. Adjust sliders and dropdowns for interactive inputs.
-    3. Click 'Calculate Risk' to view results.
-    """)
-    st.image("project-root/Lauki Finance.JPG", caption="Your Trusted Finance Partner")
-```
-- **Purpose**: Provides clear guidance for users, ensuring ease of navigation and usage.
-- **Image Integration**: Adds a logo or relevant image to enhance brand identity.
-
-### 3. **Input Fields**
-#### Customer Details
-```python
-col1, col2, col3 = st.columns(3)
-age = col1.number_input("📅 Age", min_value=18, max_value=100, value=28, help="Enter your age (18-100).")
-income = col2.number_input("💰 Income (Annual)", min_value=0, max_value=5000000, value=290875, step=50000, help="Your annual income in currency units.")
-loan_amount = col3.number_input("🏦 Loan Amount", min_value=0, value=2560000, help="Total loan amount you want to borrow.")
-```
-- **Purpose**: Captures key demographic and financial details:
-  - Age: Basic eligibility.
-  - Income: Annual income in currency units.
-  - Loan Amount: Requested loan amount.
-
-#### Loan Insights
-```python
-lti = loan_amount / income if income > 0 else 0
-st.metric(label="Loan-to-Income Ratio (LTI)", value=f"{lti:.2f}", help="This shows the ratio of the loan amount to your income.")
-```
-- **Purpose**: Calculates the Loan-to-Income Ratio (LTI), a critical metric for assessing affordability.
-
-#### Loan Details
-```python
-loan_tenure_months = col4.slider("⏳ Loan Tenure (Months)", min_value=6, max_value=240, step=6, value=36, help="Select the loan tenure in months.")
-avg_dpd_per_dm = col5.number_input("⚠ Avg DPD", min_value=0, value=0, help="Average Delinquent Days (Defaults), set to 0 if no loan history.")
-dmtlm = col6.slider("📅 DMTLM (Delinquent Months to Loan Ratio)", min_value=0, max_value=100, value=0, help="Delinquency ratio, 0 if no loans.")
-```
-- **Purpose**: Collects loan-specific details:
-  - Loan tenure in months.
-  - Average delinquent days (defaults) per loan.
-  - Delinquency-to-loan ratio (DMTLM).
-
-#### Loan Purpose and Additional Details
-```python
-credit_utilization_ratio = col7.slider("💳 Credit Utilization (%)", min_value=0, max_value=100, value=0, help="Percentage of utilized credit, 0 if no credit.")
-total_loan_months = col8.number_input("📜 Total Loan Months", min_value=0, value=0, help="Cumulative loan tenure across all loans, 0 if no loans.")
-loan_purpose = col9.selectbox("🎯 Loan Purpose", ['Education', 'Home', 'Auto', 'Personal'], help="Purpose of the loan.")
-```
-- **Purpose**: Captures the borrower's credit utilization, cumulative loan tenure, and loan purpose.
-
-#### Loan and Residence Type
-```python
-loan_type = col10.radio("🔑 Loan Type", ['Unsecured', 'Secured'], help="Choose the type of loan.")
-residence_type = col11.selectbox("🏡 Residence Type", ['Owned', 'Rented', 'Mortgage'], help="Your current residence type.")
-```
-- **Purpose**: Identifies the type of loan and housing situation, influencing risk assessment.
-
-### 4. **Calculate Risk**
-```python
-if st.button("Calculate Risk"):
-    probability, credit_score, rating = predict(...)
-    st.success("✅ Risk Assessment Completed!")
-    st.write(f"**Default Probability:** {probability:.2%}")
-    st.write(f"**Credit Score:** {credit_score}")
-    st.write(f"**Rating:** {rating}")
-```
-- **Purpose**: Triggers the prediction process when the user clicks "Calculate Risk."
-- **Outputs**:
-  - Default Probability: Displays as a percentage.
-  - Credit Score: Numeric score (300–900).
-  - Rating: Descriptive category (Poor, Average, Good, Excellent).
-
-### 5. **Risk Insights**
-```python
-if rating in ['Poor', 'Average']:
-    st.warning("⚠ The borrower have a high-risk credit profile. Consider improving credit habits.")
-else:
-    st.info("🌟 The borrower have a low-risk profile. Loan approval is likely.")
-```
-- **Purpose**: Provides actionable feedback based on the credit rating.
+- Duplicate records are identified, and no duplicates were found in this dataset.
 
 ---
 
-## **Key Features**
-- **User-Centric Design**: Simplifies complex credit risk modeling for non-technical users.
-- **Interactive Widgets**: Enables dynamic input adjustments and instant results.
-- **Risk Insights**: Guides decision-making with clear feedback based on credit rating.
+### **6. Outlier Handling**
+#### **Using the IQR Method**
+```python
+def iqr(column):
+    q1, q3 = df[column].quantile([0.25, 0.75])
+    IQR = q3 - q1
+    lower_bound = q1 - (1.5 * IQR)
+    upper_bound = q3 + (1.5 * IQR)
+    print(f"Lower Bound: {lower_bound} and Upper Bound: {upper_bound}\n")
+```
+- Interquartile Range (IQR) is used to calculate lower and upper bounds for detecting outliers.
+- Each numeric column is checked iteratively.
+
+#### **Capping Outliers**
+```python
+df = df[df['income'] <= df['income'].quantile(0.99)]
+```
+- Extreme outliers are capped using the 99th percentile threshold to retain relevant data while removing anomalies.
+
+#### **Domain-Specific Validations**
+```python
+df['valid_gst'] = df['gst'] <= (df['loan_amount'] * 0.20)
+df['valid_net_disbursement'] = df['net_disbursement'] <= (df['loan_amount'] - df['gst'])
+df['valid_principal_outstanding'] = df['principal_outstanding'] <= df['loan_amount']
+df['valid_bank_balance'] = df['bank_balance_at_application'] >= 0
+```
+- Additional validations are applied based on domain-specific rules (e.g., GST capped at 20% of the loan amount).
 
 ---
 
-## **How to Use**
-1. **Run the Application**:
-   - Install Streamlit and required dependencies.
-   - Execute `streamlit run main.py` in the terminal.
-   
-2. **Interact with the Interface**:
-   - Enter borrower details, adjust parameters, and select loan-specific attributes.
-   - Click "Calculate Risk" to view results.
+### **7. Univariate Analysis**
+#### **Categorical Variables**
+```python
+cat_cols = ['gender', 'marital_status', 'employment_status', 'residence_type', 'loan_purpose', 'loan_type', 'default']
+sns.countplot(data=df, x=column, ax=axes[i], palette='Set2')
+```
+- Bar charts are created for categorical variables to understand their distribution.
 
-3. **Integrate and Analyze**:
-   - Use outputs to evaluate borrower risk profiles and make informed decisions. 
-
-
-# **Documentation for Tuned Hyperparameters**
-
-## **Overview**
-The XGBoost model utilized in this project has been fine-tuned using **Optuna**, an advanced hyperparameter optimization framework. These optimized hyperparameters improve the model's performance by balancing predictive accuracy, computational efficiency, and generalization to unseen data. Below is an explanation of the selected hyperparameters and their significance.
+#### **Numerical Variables**
+```python
+sns.boxplot(data=df, y=column, ax=axes[i], palette='Set2')
+```
+- Boxplots are generated to visualize the spread and detect potential outliers.
 
 ---
 
-## **Hyperparameter Explanation**
+### **8. Bivariate Analysis**
+#### **Scatter Plots**
+```python
+sns.scatterplot(data=df, x='age', y='income', hue='default', palette='Set2')
+```
+- Scatterplots illustrate relationships between numerical features, such as `age` and `income`, colored by default status.
 
-1. **`eta` (Learning Rate)**: `0.03962150782811734`
-   - **Definition**: Controls the step size during the optimization process.
-   - **Effect**: A smaller `eta` ensures more gradual learning, preventing overfitting and improving stability during training. The value of `0.0396` represents a conservative learning rate, ideal for fine-tuning.
+#### **Count Plots**
+```python
+sns.countplot(data=df, x='loan_purpose', hue='default', palette='Set2')
+```
+- Count plots examine the distribution of categorical variables against the target variable `default`.
 
-2. **`max_depth`**: `3`
-   - **Definition**: The maximum depth of each decision tree.
-   - **Effect**: Limits the complexity of individual trees, preventing overfitting. A depth of `3` promotes simpler models, improving generalization to new data.
-
-3. **`subsample`**: `0.6272358596011762`
-   - **Definition**: The fraction of samples used to train each tree.
-   - **Effect**: Helps prevent overfitting by using only `62.7%` of the data for training each tree. This introduces randomness and enhances the model's robustness.
-
-4. **`colsample_bytree`**: `0.7136867658100697`
-   - **Definition**: The fraction of features considered when building each tree.
-   - **Effect**: Ensures diversity by using `71.4%` of the features for each tree, reducing the risk of overfitting while maintaining strong predictive power.
-
-5. **`n_estimators`**: `388`
-   - **Definition**: The number of boosting rounds or decision trees in the ensemble.
-   - **Effect**: Determines the total number of trees in the model. A value of `388` provides sufficient boosting iterations to achieve high accuracy without excessive computation.
+#### **Heatmaps**
+```python
+crosstab = np.round(pd.crosstab(df['employment_status'], df['default'], normalize='index'), 2)
+sns.heatmap(crosstab, annot=True, cmap='coolwarm')
+```
+- Cross-tabulations are visualized using heatmaps to identify patterns in categorical features.
 
 ---
 
-## **Why These Hyperparameters Matter**
-The selected hyperparameters strike a balance between:
-- **Performance**: Achieving high metrics such as AUC, Gini, and KS.
-- **Efficiency**: Avoiding unnecessary complexity and computational overhead.
-- **Generalization**: Ensuring the model performs well on new, unseen data.
+### **9. Correlation Analysis**
+#### **Correlation Matrix**
+```python
+plt.figure(figsize=(20, 20))
+sns.heatmap(numeric_data.corr(), annot=True, cmap='coolwarm')
+```
+- Correlations among numerical features are analyzed to detect multicollinearity and identify predictive relationships.
+
+#### **Correlation with Target**
+```python
+target_correlation = correlation_matrix['default'].sort_values(ascending=False)
+sns.barplot(x=target_correlation.index, y=target_correlation.values, palette='coolwarm')
+```
+- Features most correlated with the target variable (`default`) are highlighted to aid feature selection.
 
 ---
 
-## **Optimization Framework**
-The hyperparameters were tuned using **Optuna**, which employs:
-- **Bayesian Optimization**: Efficient exploration of the hyperparameter space.
-- **Objective Function**: Maximizing evaluation metrics like AUC and Gini.
-- **Stopping Criteria**: Automatically halts optimization when no significant improvements are observed.
+### **10. Summary**
+A detailed summary is provided at the end of the analysis, highlighting key findings and ensuring data integrity for further modeling. 
+
+#### **Outlier Handling Process**
+
+This outlier handling process combines technical methods and domain knowledge to ensure data integrity:
+
+1. **IQR Method**: Used to identify and address outliers in numerical columns by calculating lower and upper bounds.
+
+2. **Quantile-Based Filtering**: Extreme values in specific columns (e.g., income) were capped using quantile thresholds to reduce the effect of outliers.
+
+3. **Derived Features**: Additional features like `diff` (difference between loan amount and processing fee) and `pct` (percentage of processing fee relative to loan amount) were calculated for deeper insights.
+
+4. **Domain Knowledge Validations**:
+   - GST capped at 20% of the loan amount.
+   - Net disbursement should not exceed the loan amount minus GST.
+   - Principal outstanding should not exceed the loan amount.
+   - Bank balance at the application should be non-negative.
+
+5. **Composite Validity Check**: Combined multiple rules into a single validity flag (`valid_loan`) to ensure overall data consistency.
+
+6. **Final Result**:
+   - Number of invalid loan records: **0**
+
+This approach ensures that both statistical anomalies and domain-specific inconsistencies are handled effectively.
+
+
+#### **Univariate Analysis**
+
+***1. Distribution of Categorical Features***
+
+These charts provide a visual overview of the distribution of various categorical features in the loan dataset. We can see that the majority of borrowers are male and married, with most employed as salaried individuals. Owned houses are the most common residence type, and auto loans are the most frequent loan purpose. Interestingly, secured loans are significantly more popular than unsecured ones. Finally, the distribution of the target variable "default" shows that most loans were not defaulted.
+
+
+***2. Distribution of Numerical Features***
+
+This set of boxplots provides a visual representation of the distribution of various numerical features in the loan dataset. We can observe that most of the features exhibit a right-skewed distribution, indicating that a majority of the values are concentrated towards the lower end of the range. However, some features like "Loan amount" and "Processing fee" show a more uniform distribution.
+
+
+#### **Bivariate Analysis**
+
+***1. Loan Amount vs Income by Default***
+
+This scatterplot reveals a connection between loan amount and income, with larger loans generally corresponding to higher incomes. Despite this, the majority of loans, irrespective of income level, were successfully repaid. However, a significant proportion of defaults occurred at higher income levels. This suggests that factors beyond income, such as credit history or debt-to-income ratio, could significantly influence default risk.
+
+
+***2. Loan Amount vs Age by Default***
+
+This scatterplot illustrates the relationship between loan amount and age, revealing that most borrowers are between 20 and 60 years old. While older borrowers tend to take larger loans, the majority of loans, regardless of age, were not defaulted. However, a notable portion of defaults occurred among younger borrowers. This suggests that factors beyond age, such as credit history or income level, could significantly influence default risk.
+
+
+***3. Age vs Income by Default***
+
+This scatter plot shows the relationship between age and income, with different colors representing whether a loan was defaulted or not. While there is no clear trend, it appears that defaults occur across a wide range of ages and income levels.
+
+
+***4. Loan Purpose vs Default***
+
+This bar chart shows the number of loans for each purpose (auto, home, personal, education) and whether they were defaulted or not. Overall, most loans were not defaulted. However, home loans had the highest number of defaults, while auto loans had the lowest.
+
+
+***5. Loan Type vs Default***
+
+This bar chart shows the number of secured and unsecured loans, and whether they were defaulted or not. Overall, secured loans were more common and had fewer defaults compared to unsecured loans.
+
+
+***6. Proportion of Defaults by Employment Status***
+
+This heatmap shows the proportion of defaulted and non-defaulted loans for salaried and self-employed individuals. Both salaried and self-employed individuals have a high proportion of non-defaulted loans, with only a small percentage of defaults. However, salaried individuals have a slightly lower default rate compared to self-employed individuals.
+
+
+***7. Proportion of Defaults by Marital Status***
+
+This heatmap shows the proportion of defaulted and non-defaulted loans for married and single individuals. Both married and single individuals have a high proportion of non-defaulted loans, with only a small percentage of defaults. However, married individuals have a slightly lower default rate compared to single individuals.
+
+
+***8. Default Counts by City***
+
+This bar chart shows the number of defaulted and non-defaulted loans for various cities in India. All cities have a higher number of non-defaulted loans than defaulted loans. However, Mumbai has the highest number of both defaulted and non-defaulted loans.
+
+
+***9. Correlation Analysis***
+
+This correlation matrix provides a visual representation of the relationships between various numerical features. The lighter shades indicate a stronger positive correlation, while the darker shades indicate a stronger negative correlation. We can observe several interesting relationships: There is a strong positive correlation between loan amount, sanction amount, processing fee, GST, net disbursement, and principal outstanding, suggesting that these features are closely related. Income and loan amount are also positively correlated, indicating that higher income individuals tend to take larger loans.
+Age and income show a moderate positive correlation, suggesting that older individuals tend to have higher incomes. Credit utilization ratio has a moderate positive correlation with delinquent months and total DPD, suggesting that higher credit utilization is associated with a higher risk of default. Overall, the correlation matrix provides valuable insights into the relationships between different features and can be used to identify potential predictors of loan default.
+
+
+***10. Correlation of Numeric Features with Default***
+
+This analysis examines how different numerical features are related to loan defaults. The results show that a high credit utilization ratio is strongly linked to an increased chance of default, while longer loan terms have the opposite effect. Interestingly, many other factors, like loan amount or credit history length, seem to have little to no bearing on default risk. To get a clearer picture, further analysis like feature importance ranking and modelling could be helpful in understanding what truly makes a loan more likely to default.
 
 ---
 
-## **Benefits of Fine-Tuning**
-1. **Improved Predictive Power**: Optimal settings enhance the model’s ability to distinguish default from non-default classes.
-2. **Reduced Overfitting**: Regularization through `subsample` and `colsample_bytree` ensures the model generalizes well.
-3. **Efficient Training**: The chosen hyperparameters minimize unnecessary computation, making the model more deployable in production environments.
-
----
-
-## **How to Apply These Hyperparameters**
-If you want to replicate or adapt this model:
-1. Use the following dictionary of hyperparameters in your XGBoost training function:
-   ```python
-   params = {
-       'eta': 0.03962150782811734,
-       'max_depth': 3,
-       'subsample': 0.6272358596011762,
-       'colsample_bytree': 0.7136867658100697,
-       'n_estimators': 388
-   }
-   ```
-2. Initialize the XGBoost classifier:
-   ```python
-   from xgboost import XGBClassifier
-   model = XGBClassifier(**params)
-   ```
-3. Train the model on your dataset:
-   ```python
-   model.fit(X_train, y_train)
-   ```
+## Key Takeaways
+This project:
+- Demonstrates the ability to clean and preprocess data effectively.
+- Employs statistical and domain-specific techniques for outlier handling and validation.
+- Extracts valuable insights through visualization and correlation analysis.
+- Establishes a solid foundation for predictive modeling in credit risk analysis. 
